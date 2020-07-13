@@ -1,5 +1,5 @@
 #include <iostream>
-#include "aknn.h"
+#include "aknn_test.h"
 using namespace std;
 
 int main(int argc, char** argv)
@@ -11,7 +11,7 @@ int main(int argc, char** argv)
 		* gtname = "../sift/sift_groundtruth.ivecs";
 	const unsigned K = 100, L = 10;
 	Param params(basename, queryname, graphname, gtname, K, L);
-	AKNN aknn(params);
+	AKNN_T aknn(params);
 	aknn.load();
 	freopen("../log.txt", "w", stdout);
 	aknn.test_groundtruth();

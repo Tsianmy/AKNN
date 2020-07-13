@@ -7,7 +7,7 @@
 sift/
 gist/
 log.*
-
+backup/
 
 # User-specific files
 *.rsuser

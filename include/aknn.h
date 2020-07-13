@@ -21,8 +21,6 @@ class AKNN {
 public:
 	explicit AKNN(Param _params) : params(_params) {}
 	void load();
-	void test_groundtruth();
-	void test_knng();
 	~AKNN();
 
 protected:
