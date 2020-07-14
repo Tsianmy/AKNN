@@ -1,7 +1,7 @@
 #ifndef AKNN_TEST_H
 #define AKNN_TEST_H
 
-#include "include/aknn.h"
+#include "../include/aknn.h"
 
 class AKNN_T: public AKNN {
 public:

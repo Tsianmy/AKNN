@@ -1,9 +1,6 @@
 #include "aknn_test.h"
-#include "include/aknn.cpp"
-#include <fstream>
-#include <iostream>
+#include "../include/aknn.cpp"
 #include <set>
-using namespace std;
 
 void AKNN_T::test_groundtruth()
 {
