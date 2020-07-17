@@ -2,20 +2,13 @@
 #define AKNN_H
 
 #include <vector>
+#include <unordered_set>
 typedef unsigned uint;
 
-class Param {
-public:
-	char *basename, *queryname, *graphname, *gtname, *outputname;
-	uint K, L, E, I;
-
-	Param(){}
-	Param(char *_base, char *_query, char *_graph, char *_gt, char *_output, uint _K, uint _L, uint _E, uint _I):
-		basename(_base), queryname(_query), graphname(_graph), gtname(_gt), outputname(_output),
-		K(_K), L(_L), E(_E), I(_I)
-	{
-		if (L < K) L = K;
-	}
+struct Param {
+	uint K, L, E, R;
+	Param() {}
+	Param(uint _K, uint _L, uint _E, uint _R = 1) : K(_K), L(_L), E(_K), R(_R) {}
 };
 
 struct Neighbor {
@@ -35,10 +28,17 @@ struct Data {
 
 class AKNN {
 public:
-	explicit AKNN(Param _params) : params(_params) {}
-	void load();
+	AKNN() {}
+	AKNN(char *basename, char *queryname, char *graphname, char *gtname);
+	void load(char *basename, char *queryname, char *graphname, char *gtname);
 	void search();
-	void save();
+	void save(char *outputname);
+	void init_params(Param _params);
+	void display();
+	void set_E(uint E);
+	void set_R(uint R);
+	void set_L(uint L);
+	void gen_lknn(uint K, char * lknnName);
 
 	static float distance(float * vec1, float * vec2, uint dim);
 	static float * get_ptr(float * begin, const uint index, const uint dim);
@@ -48,12 +48,16 @@ public:
 
 protected:
 	Param params;
+	bool ready = false;
 	Data<float> base, query;
 	Data<int> graph, groundtruth;
 	Data<int> searchRes;
+	std::vector<std::unordered_set<uint>> gtset;
 
 	void load_data(char* filename, float*& data, uint& num, uint& dim);
 	void load_data(char* filename, int*& data, uint& num, uint& dim);
+	void display_data(float* data, uint num, uint dim);
+	void display_data(int* data, uint num, uint dim);
 
 	void get_neighbors(std::vector<uint> & res, uint q, uint initPoint, uint K, uint L, uint E);
 };

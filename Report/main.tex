@@ -1,0 +1,238 @@
+\documentclass{article}
+\usepackage{geometry}
+\geometry{a4paper,scale=0.7,top=3cm,bottom=3cm}
+\usepackage[utf8]{inputenc}
+\usepackage[backend = biber, sorting = none]{biblatex}
+\addbibresource{references.bib}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\graphicspath{ {image/} }
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{algpseudocode}
+\usepackage{algorithmicx,algorithm}
+\usepackage{enumitem}
+\usepackage[UTF8]{ctex}
+\usepackage[
+	colorlinks,
+	linkcolor = black,
+	urlcolor = black,
+	citecolor = black
+]{hyperref}
+\usepackage{pgfplots}
+
+\newcommand{\tb}[1]{\textbf{#1}}
+
+\title{Report}
+\date{}
+\author{周奇}
+
+\begin{document}
+
+\maketitle
+
+本文代码见于: \href{https://github.com/Tsianmy/AKNN}{Github}, URL: \url{https://github.com/Tsianmy/AKNN}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 基础题
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{基础题}
+
+%%%%%%%%%%%%%%%%%%%%
+\subsection{实现思路}
+
+\subsubsection*{输入数据分析}
+第一步是了解输入的数据格式，数据集 SIFT1M 和 GIST1M 来自 \href{http://corpus-texmex.irisa.fr/}{TEXMEX}。从数据集官网可知数据的格式均为 $d, component$ 构成的向量，每一个向量为 $4 + 4d$ 字节。base 和 query 的维度为 128，可知每个点有 128 个分量。groundtruth 和另外两个数据的类型不一样，其中的向量为整型。且官网给出，groundtruth 的数据是对应每一个 query 的索引号（从零开始），索引号按距离从小到大排序。默认 $k = 100$，那么可以推测 $d = 100$，之后是 100 个索引号。
+
+为了验证这一点，我先是计算 query 中的第 0 个点和 base 中前 100 个点的距离，然后计算第 0 个点和 groundtruth 中对应的 100 个临近点的距离。从结果看出，和 groundtruth 的点的距离确实比和 base 中前 100 个点的距离小，而且距离确实是从小到大。甚至，我将第 0 个点与所有 1M 个点的距离和第 0 个点与第 99 个（$k - 1$）临近点的距离进行比较，结果显示后者距离更小。
+
+之后，用同样的方法测试了 KNN 图的数据，测试结果与推测相同， KNN 图的数据也是和 groundtruth 的数据格式相同。输入数据的格式整理成如 Table 1 所示。
+
+\begin{table}[h]
+\caption*{Table 1. 输入数据格式}
+\centering
+\begin{tabular}{@{}lll@{}}
+	\toprule
+	名称        & 数据类型                            & 描述                             \\ \midrule
+	d         & int                             & 向量维度                           \\
+	component & (unsigned char$|$float$|$int)*d & fvecs存点向量的分量，ivecs存近邻点的id \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{算法流程}
+算法 Algorithm 1 参考自 \cite{ref1} 与 \cite{ref2}，其中，$N(\tb P, E, G)$ 为 $k$-NN 图中点 $\tb P$ 的前 $E$ 个最近邻点。
+
+使用 C++ 实现，MSVC 编译后，当 $E = 10, R = 1$ 时，查询 10000 次约耗 3 - 4 秒，查阅了已有的最近邻搜索 \cite{ref3} 相关代码后发现，搜索时可以并行计算，于是采用并行计算，将搜索时间缩减到 1.1 秒。
+
+\begin{algorithm}[h]
+\caption{Search($G, \tb q, K, R, E, L$)} %算法的名字
+\hspace*{0.02in} {\bf Input:} %算法的输入， \hspace*{0.02in}用来控制位置，同时利用 \\ 进行换行
+	$k$-NN 图 $G$，待查询点 $\tb q$，最近邻点数 $K$，重启次数 $R$，扩展结点数 $E$，候选集大小 $L$。 \\
+\hspace*{0.02in} {\bf Output:} %算法的结果输出
+	$Q$ 的 $K$ 个最近邻点。
+\begin{algorithmic}[1]
+\For{r $= 1, ..., R$}
+		\State $i = 0$，$S = \O$
+		\State $\tb p$：G 中随机一点
+		\State $S = S \cup \{ \tb p\}$
+		\While{$i < L$}
+				\State $i = S$ 中第一个未被检查过的下标
+				\State 标记 $ \tb p_i$
+				\For{$ \tb n$ in $N(\tb p_i, E, G)$}
+						\State If $ \tb n$ 没有进入过候选集，$S = S \cup \{ \tb n\}$
+				\EndFor
+				\State 在 $S$ 中按与点 $\tb q$ 的距离大小进行排序
+				\State 保持 $S$ 的容量不超过 $L$
+		\EndWhile
+		\State 计算平均精度，选择平均精度大的搜索结果
+\EndFor
+\State \Return $S$ 中前 $K$ 个点
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection*{数据结构}
+\begin{itemize}
+		\item 数据集可用动态数组存储。
+		\item 候选集 $S$ 可用 \verb|std::vector| 表示。
+		\item 计算 recall 时，需要知道 groundtruth 中的近邻点，每个查询点的 $k$ 近邻点可以存入以散列表为基础的 \verb|std::unordered_set|，以提高查找效率。
+		\item 可以用结构体存储点的索引和到查询点 $\tb q$ 的距离，然后重载 $<$ 运算符为按距离大小比较，使得对候选集排序后，距离小的在前。
+\end{itemize}
+
+\subsubsection*{讨论}
+\begin{enumerate}
+\item 优点
+		\begin{itemize}
+				\item 实现简单，相比于 Brute Force 方法提升了计算速度。
+		\end{itemize}
+\item 缺点
+		\begin{itemize}
+				\item 数据集较大时增加了内存开销。
+				\item 精度受初始点影响，随机选择初始点使算法不稳定。
+				\item $k$ 过于小时容易陷入局部最优。
+		\end{itemize}
+\item 改进
+		\begin{itemize}
+				\item 也许可以将整个图划分成若干个空间，将离平均坐标最近的点作为各空间初始候选点。每次重启时，如果某一个候选点与待查询点 $\tb q$ 的距离小于和随机初始点的距离，就从该候选点开始搜索，否则从随机初始点开始搜索，这样可以加快收敛速度。
+				\item 缩小内存开销也是需要改进的方向。
+		\end{itemize}
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%
+\subsection{结果评估}
+
+\begin{figure}[h]
+\centering
+\subfigure[SIFT1M. QPS -- Accuracy]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				width=12cm, height=6cm,
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Accuracy,
+				xmin=0.59, xmax=1,
+				ymin=100, ymax=30000, ytick={100,1000,10000},
+				grid style=dashed,
+				legend columns=4,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=Accuracy, y=QPS, col sep=comma] {data/1_sift_qps_acc.csv};
+		\addplot+[sharp plot, color=black] table [x=50acc, y=50qps, col sep=comma] {data/1_sift_qps_acc.csv};
+		\addplot+[sharp plot] table [x=30acc, y=30qps, col sep=comma] {data/1_sift_qps_acc.csv};
+		\addplot+[sharp plot] table [x=10acc, y=10qps, col sep=comma] {data/1_sift_qps_acc.csv};
+		\legend{100NN, 50NN, 30NN, 10NN}
+		\end{semilogyaxis}
+		\end{tikzpicture}
+}
+\subfigure[SIFT1M. Accuracy -- $R$\newline 		($K = 100, E = 100, L = 100$)]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black},
+				compat=newest
+		}
+		\begin{axis}[
+				height=6cm,
+				ylabel=Accuracy, ymajorgrids=true,
+				xlabel= 重启次数 $R$,
+				ymin=0.96, ymax=0.98, ytick={0.96, 0.966, 0.972, 0.98},
+				xmin=1, xmax=5, xtick={1, 2, 3, 4, 5},
+				yticklabel={\pgfmathparse{(\tick)}\num[round-mode=places, round-precision=3]{\pgfmathresult}},
+				grid style=dashed,
+				legend style={legend pos=outer north east},
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=black] table [x=R, y=Accuracy1, col sep=comma] {data/1_sift_r_acc.csv};
+		\end{axis}
+		\end{tikzpicture}
+}
+\subfigure[GIST1M. QPS -- Accuracy]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				width=12cm, height=6cm,
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Accuracy,
+				xmin=0.53, xmax=1,
+				ymin=10, ymax=10000, ytick={10,100,1000,10000},
+				grid style=dashed,
+				legend columns=3,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=Accuracy, y=QPS, col sep=comma] {data/1_gist_qps_acc.csv};
+		\addplot+[sharp plot, color=black] table [x=50acc, y=50qps, col sep=comma] {data/1_gist_qps_acc.csv};
+		\addplot+[sharp plot] table [x=30acc, y=30qps, col sep=comma] {data/1_gist_qps_acc.csv};
+		\legend{100NN, 50NN, 30NN}
+		\end{semilogyaxis}
+		\end{tikzpicture}
+}
+\subfigure[SIFT1M. Accuracy -- $R$\newline 		($K = 100, E = 100, L = 1200$)]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black},
+				compat=newest
+		}
+		\begin{axis}[
+				height=6cm,
+				ylabel=Accuracy, ymajorgrids=true,
+				xlabel= 重启次数 $R$,
+				ymin=0.999, ymax=1, ytick={0.999, 0.9992, 0.9993, 1},
+				xmin=1, xmax=5, xtick={1, 2, 3, 4, 5},
+				yticklabel={\pgfmathparse{(\tick)}\num[round-mode=places, round-precision=4]{\pgfmathresult}},
+				grid style=dashed,
+				legend style={legend pos=outer north east},
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=black] table [x=R, y=Accuracy2, col sep=comma] {data/1_sift_r_acc.csv};
+		\end{axis}
+		\end{tikzpicture}
+}
+\caption*{Figure 1. 搜索性能}
+\end{figure}
+
+搜索的结果如 Figure 1 所示，QPS 越小，精度越高。QPS 通过参数 $E, L$ 来控制，先增加 $E$，后增加 $L$。
+
+图（a）显示了不同的 $k$-NN 图上运行的效果，当 QPS 比较高时，$k$ 稍小的图精度较高；当 QPS 减小到一定程度时由参数 $L$ 主导，此时 $k$ 越大的图越有利。
+
+从图（b）和图（d）看出，重启次数对精度提升十分小，但搜索时间却成倍增加。
+
+\subsubsection*{内存峰值}
+\begin{itemize}
+		\item SIFT1M：峰值为 0.983GB。
+		\item GIST1M：峰值为 3.71GB。
+\end{itemize}
+
+\printbibliography[
+heading=bibintoc,
+title = {参考文献}
+]
+\end{document}
