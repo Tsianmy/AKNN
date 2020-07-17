@@ -170,6 +170,16 @@ void AKNN::load_data(char * filename, int *& data, uint & num, uint & dim)
 	in.close();
 }
 
+void AKNN::insert_pool(vector<Neighbor>& pool, Neighbor p, size_t end)
+{
+	size_t i = end;
+	while (i > 0 && p.distance < pool[i - 1].distance) {
+		pool[i] = pool[i - 1];
+		i--;
+	}
+	pool[i] = p;
+}
+
 float AKNN::distance(float * vec1, float * vec2, uint dim)
 {
 	float sum = 0;
@@ -198,12 +208,12 @@ void AKNN::search()
 	searchRes.num = query.num;
 
 	float qtime = 0;
-	srand((int)time(0));
+	srand((uint)time(0));
 	uint acc = 0;
-	vector<bool> complete(searchRes.num);
+	//vector<bool> complete(searchRes.num);
 
 	clock_t start = clock();
-#pragma omp parallel for
+#pragma omp parallel for reduction(+:acc)
 	for (int q = 0; q < searchRes.num; q++) {
 		vector<uint> neighbors;
 		int maxc = -1;
@@ -256,15 +266,19 @@ void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uin
 		vis[id] = true;
 		
 		int * neighbors = get_ptr(graph.data, id, graph.dim);
+		size_t end = min(S.size(), (size_t)L), sz = min(S.size() + E, (size_t)L + 1);
+		S.resize(sz);
 		for (j = 0; j < E; j++) {
 			if (vis[neighbors[j]] || in[neighbors[j]]) continue;
 			float * pj = get_ptr(base.data, neighbors[j], base.dim);
 			float dis = distance(pj, ptr_q, base.dim);
-			S.push_back(Neighbor(neighbors[j], dis));
+			insert_pool(S, Neighbor(neighbors[j], dis), end);
+			end = min(end + 1, sz - 1);
+			//S.push_back(Neighbor(neighbors[j], dis));
 			in[neighbors[j]] = true;
 		}
-		sort(S.begin(), S.end());
-		if (S.size() > L) S.resize(L);
+		//sort(S.begin(), S.end());
+		//if (S.size() > L) S.resize(L);
 	}
 	for (i = 0; i < K && i < S.size(); i++) res[i] = S[i].id;
 }
