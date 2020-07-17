@@ -8,34 +8,34 @@ namespace sift {
 		*queryname = "../sift/sift_query.fvecs",
 		*graphname = "../sift/sift_100NN_100.graph",
 		*gtname = "../sift/sift_groundtruth.ivecs",
-		*outname = "../sift/searchRes.ives";
+		*outname = "../sift/searchRes.ivecs";
 }
 namespace gist {
 	char * basename = "../gist/gist_base.fvecs",
 		*queryname = "../gist/gist_query.fvecs",
-		*graphname = "../gist/gist_10NN_10.graph",
+		*graphname = "../gist/gist_100NN_100.graph",
 		*gtname = "../gist/gist_groundtruth.ivecs",
-		*outname = "../gist/searchRes.ives";
+		*outname = "../gist/searchRes.ivecs";
 }
 
 int main(int argc, char** argv)
 {
 	omp_set_num_threads(4);
 	freopen("../log.txt", "w", stdout);
-	AKNN aknn(gist::basename, gist::queryname, gist::graphname, gist::gtname);
-	aknn.display();
-	const uint K = 10;
+	AKNN aknn(sift::basename, sift::queryname, sift::graphname, sift::gtname);
+	//aknn.display();
+	const uint K = 100;
 	uint L = K, E = K, R = 1;
 	Param params(K, L, E);
 	aknn.init_params(params);
 	cerr << "search...\n";
-	//aknn.search();
-	for (E = 10; E <= K; E += 10) {
+	aknn.search();
+	/*for (E = 10; E <= K; E += 10) {
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_E(E);
 		aknn.search();
 	}
-	E = K;
+	/*E = K;
 	aknn.set_E(E);
 	for (L = 50; L <= 2500; L += 100) {
 		if (L == 150) L = 100;
