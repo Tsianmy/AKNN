@@ -1,0 +1,4 @@
+gist_100NN_100.graph
+gist_base.fvecs
+gist_groundtruth.ivecs
+gist_query.fvecs

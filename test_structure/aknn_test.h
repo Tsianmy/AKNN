@@ -5,7 +5,7 @@
 
 class AKNN_T: public AKNN {
 public:
-	explicit AKNN_T(Param _params) : AKNN(_params) {}
+	AKNN_T(char *basename, char *queryname, char *graphname, char *gtname) : AKNN(basename, queryname, graphname, gtname) {}
 	void test_groundtruth();
 	void test_knng();
 };

@@ -10,10 +10,7 @@ int main(int argc, char** argv)
 		* graphname = "../sift/sift_100NN_100.graph",
 		* gtname = "../sift/sift_groundtruth.ivecs",
 		*outname = "../sift/searchRes.ives";
-	const unsigned K = 100, L = 100, E = 10, I = 1;
-	Param params(basename, queryname, graphname, gtname, outname, K, L, E, I);
-	AKNN_T aknn(params);
-	aknn.load();
+	AKNN_T aknn(basename, queryname, graphname, gtname);
 	freopen("../log.txt", "w", stdout);
 	aknn.test_groundtruth();
 	aknn.test_knng();
