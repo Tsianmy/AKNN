@@ -210,7 +210,6 @@ void AKNN::search()
 	float qtime = 0;
 	srand((uint)time(0));
 	uint acc = 0;
-	//vector<bool> complete(searchRes.num);
 
 	clock_t start = clock();
 #pragma omp parallel for reduction(+:acc)
