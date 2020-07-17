@@ -15,8 +15,11 @@ struct Neighbor {
 	uint id;
 	float distance;
 	Neighbor(uint _id = 0, float _d = 0) : id(_id), distance(_d) {}
-	bool operator < (const Neighbor & n) {
+	bool operator < (const Neighbor & n) const {
 		return distance < n.distance;
+	}
+	bool operator > (const Neighbor & n) const {
+		return distance > n.distance;
 	}
 };
 
@@ -40,6 +43,7 @@ public:
 	void set_L(uint L);
 	void gen_lknn(uint K, char * lknnName);
 
+	static void insert_pool(std::vector<Neighbor>& pool, Neighbor p, size_t end);
 	static float distance(float * vec1, float * vec2, uint dim);
 	static float * get_ptr(float * begin, const uint index, const uint dim);
 	static int * get_ptr(int * begin, const uint index, const uint dim);
