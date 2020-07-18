@@ -98,7 +98,7 @@
 		\item 数据集可用动态数组存储。
 		\item 候选集 $S$ 可用 \verb|std::vector| 表示。
 		\item 计算准确率时，需要知道 groundtruth 中的近邻点，每个查询点的 $k$ 近邻点可以存入以散列表为基础的 \verb|std::unordered_set|，以提高查找效率。
-		\item 可以用结构体存储点的索引和到查询点 $\tb q$ 的距离，然后重载 $<$ 运算符为按距离大小比较，使得对候选集排序后，距离小的在前。
+		\item 可以用结构体存储点的索引和到查询点 $\tb q$ 的距离，然后重载比较运算符为按距离大小比较，使得对候选集排序后，距离小的在前。
 \end{itemize}
 
 \subsubsection*{讨论}
@@ -227,9 +227,50 @@
 
 \subsubsection*{内存峰值}
 \begin{itemize}
-		\item SIFT1M：峰值为 0.983GB。
-		\item GIST1M：峰值为 3.71GB。
+		\item SIFT1M：内存峰值为 0.983GB。
+		\item GIST1M：内存峰值为 3.71GB。
 \end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%
+\subsection{Candidate Pool 结构}
+
+\subsubsection*{固定大小的堆实现}
+可以用最大堆实现，堆的容量达到 $L$ 时，扩展的点和堆顶元素比较，如果距离比堆顶小，弹出堆顶，扩展点进入堆，结束搜索后依次弹出，翻转次序即为按距离从小到大的近邻点。也可以使用最小堆实现，找出叶子结点中距离最大的，如果扩展点距离比该结点小，就替换该结点，然后向上调整。本文用最小堆来实现 Candidate Pool。
+
+\subsubsection*{插入排序实现}
+利用插入排序的思想，找到 Candidate Pool 中合适的位置进行插入，所有元素向后移动。
+
+\subsubsection*{结果评估}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				title=SIFT1M,
+				width=12cm, height=6cm,
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Accuracy,
+				xmin=0.73, xmax=1,
+				ymin=100, ymax=15000, ytick={100,1000,10000},
+				grid style=dashed,
+				legend columns=3,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=Accuracy, y=QPS, col sep=comma] {data/1_diff_struct.csv};
+		\addplot+[sharp plot, color=blue] table [x=heapacc, y=heapqps, col sep=comma] {data/1_diff_struct.csv};
+		\addplot+[sharp plot, color=black] table [x=insacc, y=insqps, col sep=comma] {data/1_diff_struct.csv};
+		\legend{Vector, Fixed-size Heap, Insertion Sort}
+		\end{semilogyaxis}
+\end{tikzpicture}
+
+\caption*{Figure 2. 不同 Candidate Pool 结构的搜索性能}
+\end{figure}
+
+从结果可以看出，使用堆结构或是插入排序可以提升搜索效率，堆结构和插入排序的效果相当。
 
 \printbibliography[
 heading=bibintoc,
