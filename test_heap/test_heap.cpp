@@ -1,7 +1,6 @@
 #include <iostream>
 #include <omp.h>
-#include "../include/aknn.h"
-//#include "../include/fixed_heap.hpp"
+#include "aknn_test.h"
 using namespace std;
 
 namespace sift {
@@ -23,15 +22,15 @@ int main(int argc, char** argv)
 {
 	omp_set_num_threads(4);
 	freopen("../log.txt", "w", stdout);
-	AKNN aknn(sift::basename, sift::queryname, sift::graphname, sift::gtname);
+	AKNN_T aknn(sift::basename, sift::queryname, sift::graphname, sift::gtname);
 	aknn.display();
 	const uint K = 100;
 	uint L = K, E = K, R = 1;
 	Param params(K, L, E);
 	aknn.init_params(params);
 	cerr << "search...\n";
-	aknn.search();
-	/*for (E = 10; E <= K; E += 10) {
+	//aknn.search();
+	for (E = 10; E <= K; E += 10) {
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_E(E);
 		aknn.search();
@@ -51,8 +50,8 @@ int main(int argc, char** argv)
 	aknn.search();
 	}*/
 
-	cerr << "save...\n";
-	aknn.save(sift::outname);
+	/*cerr << "save...\n";
+	aknn.save(sift::outname);*/
 
 	/*int n = 100;
 	fixedMinHeap<int> heap(n);

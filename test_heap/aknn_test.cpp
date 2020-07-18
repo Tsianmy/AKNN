@@ -26,6 +26,8 @@ void AKNN_T::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, u
 		uint id = S[i].id;
 		vis[id] = true;
 
+		//if (q == 0) cout << i << endl;
+
 		int * neighbors = get_ptr(graph.data, id, graph.dim);
 		for (j = 0; j < E; j++) {
 			if (vis[neighbors[j]] || in[neighbors[j]]) continue;
@@ -34,6 +36,12 @@ void AKNN_T::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, u
 			S.push(Neighbor(neighbors[j], dis));
 			in[neighbors[j]] = true;
 		}
+
+		/*if (q == 0) {
+			cout << "size: " << S.size() << endl;
+			for (j = 0; j < S.size(); j++) cout << S[j].id << ": " << S[j].distance << endl;
+			cout << endl;
+		}*/
 	}
 	for (i = 0; i < K && !S.empty(); i++) {
 		res[i] = S.top().id;

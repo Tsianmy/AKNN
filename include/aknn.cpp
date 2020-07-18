@@ -245,8 +245,11 @@ void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uin
 	float * ptr_q = get_ptr(query.data, q, query.dim);
 	float initDis = distance(get_ptr(base.data, initPoint, base.dim), ptr_q, base.dim);
 
-	vector<Neighbor> S;
-	S.push_back(Neighbor(initPoint, initDis));
+	//vector<Neighbor> S;
+	//S.push_back(Neighbor(initPoint, initDis));
+	vector<Neighbor> S(L + 1);
+	S[0] = Neighbor(initPoint, initDis);
+	size_t end = 0;
 
 	vector<bool> vis(base.num, false), in(base.num, false);
 	uint i = 0;
@@ -263,21 +266,26 @@ void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uin
 
 		uint id = S[i].id;
 		vis[id] = true;
+
+		//if (q == 0) cout << i << endl;
 		
 		int * neighbors = get_ptr(graph.data, id, graph.dim);
-		size_t end = min(S.size(), (size_t)L), sz = min(S.size() + E, (size_t)L + 1);
-		S.resize(sz);
 		for (j = 0; j < E; j++) {
 			if (vis[neighbors[j]] || in[neighbors[j]]) continue;
 			float * pj = get_ptr(base.data, neighbors[j], base.dim);
 			float dis = distance(pj, ptr_q, base.dim);
 			insert_pool(S, Neighbor(neighbors[j], dis), end);
-			end = min(end + 1, sz - 1);
+			end = min(end + 1, (size_t)L);
 			//S.push_back(Neighbor(neighbors[j], dis));
 			in[neighbors[j]] = true;
 		}
 		//sort(S.begin(), S.end());
 		//if (S.size() > L) S.resize(L);
+		/*if (q == 0) {
+			cout << "size: " << S.size() << endl;
+			for (j = 0; j < S.size(); j++) cout << S[j].id << ": " << S[j].distance << endl;
+			cout << endl;
+		}*/
 	}
 	for (i = 0; i < K && i < S.size(); i++) res[i] = S[i].id;
 }
