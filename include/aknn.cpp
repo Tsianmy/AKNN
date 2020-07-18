@@ -8,6 +8,7 @@
 #include <cmath>
 #include <assert.h>
 #include <omp.h>
+#include <immintrin.h>
 using namespace std;
 
 AKNN::AKNN(char * basename, char * queryname, char * graphname, char * gtname)
@@ -182,10 +183,34 @@ void AKNN::insert_pool(vector<Neighbor>& pool, Neighbor p, size_t end)
 
 float AKNN::distance(float * vec1, float * vec2, uint dim)
 {
-	float sum = 0;
-	for (uint i = 0; i < dim; i++) {
-		sum += (vec1[i] - vec2[i]) * (vec1[i] - vec2[i]);
+	int nBlockWidth = 8;
+	int cntBlock = dim / nBlockWidth;
+	int cntRem = dim % nBlockWidth;
+
+	__m256 mload1, mload2,
+		mSub = _mm256_setzero_ps(),
+		mSum = _mm256_setzero_ps();
+	const float *p1 = vec1, *p2 = vec2;
+	for (int i = 0; i < cntBlock; i++)
+	{
+		mload1 = _mm256_load_ps(p1);
+		mload2 = _mm256_load_ps(p2);
+		mSub = _mm256_sub_ps(mload1, mload2);
+		mSum = _mm256_fmadd_ps(mSub, mSub, mSum);
+		p1 += nBlockWidth;
+		p2 += nBlockWidth;
 	}
+	mSum = _mm256_hadd_ps(mSum, mSum);
+	mSum = _mm256_hadd_ps(mSum, mSum);
+
+	float sum = 0;
+	sum += mSum.m256_f32[0];
+	sum += mSum.m256_f32[4];
+	for(int i = 0; i < cntRem; i++) sum += (p1[i] - p2[i]) * (p1[i] - p2[i]);
+
+	/*for (int i = 0; i < dim; i++) {
+		sum += (vec1[i] - vec2[i]) * (vec1[i] - vec2[i]);
+	}*/
 	return sqrt(sum / dim);
 }
 

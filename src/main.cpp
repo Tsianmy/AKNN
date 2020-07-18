@@ -29,8 +29,8 @@ int main(int argc, char** argv)
 	Param params(K, L, E);
 	aknn.init_params(params);
 	cerr << "search...\n";
-	aknn.search();
-	/*for (E = 10; E <= K; E += 10) {
+	//aknn.search();
+	for (E = 10; E <= K; E += 10) {
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_E(E);
 		aknn.search();
