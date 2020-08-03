@@ -1,6 +1,6 @@
 #include <iostream>
 #include <omp.h>
-#include "../include/aknn.h"
+#include "aknn_test.h"
 using namespace std;
 
 namespace sift {
@@ -8,6 +8,9 @@ namespace sift {
 		*queryname = "../data/sift_query.fvecs",
 		*graphname = "../data/sift_100NN_100.graph",
 		*gtname = "../data/sift_groundtruth.ivecs",
+		*Rname = "../data/sift_R.fvecs",
+		*codename = "../data/sift_pqcodes.ivecs",
+		*centroidname = "../data/sift_centab.fvecs",
 		*outname = "../data/searchRes.ivecs";
 }
 namespace gist {
@@ -15,6 +18,9 @@ namespace gist {
 		*queryname = "../data/gist_query.fvecs",
 		*graphname = "../data/gist_100NN_100.graph",
 		*gtname = "../data/gist_groundtruth.ivecs",
+		*Rname = "../data/gist_R.fvecs",
+		*codename = "../data/gist_pqcodes.ivecs",
+		*centroidname = "../data/gist_centab.fvecs",
 		*outname = "../data/searchRes.ivecs";
 }
 
@@ -22,11 +28,12 @@ int main(int argc, char** argv)
 {
 	omp_set_num_threads(4);
 	freopen("../log.txt", "w", stdout);
-	AKNN aknn(sift::basename, sift::queryname, sift::graphname, sift::gtname);
-	aknn.display();
+	AKNN_T aknn(sift::basename, sift::queryname, sift::graphname, sift::gtname);
+	aknn.load_train(sift::Rname, sift::codename, sift::centroidname);
+	//aknn.display();
 	const uint K = 100;
-	uint L = K, E = K, R = 1;
-	Param params(K, L, E);
+	uint L = K, E = 100, R = 1;
+	Param params(K, 100, E);
 	aknn.init_params(params);
 	cerr << "search...\n";
 	aknn.search();
@@ -38,7 +45,6 @@ int main(int argc, char** argv)
 	E = K;
 	aknn.set_E(E);
 	for (L = 200; L <= 1200; L += 100) {
-		//if (L == 150) L = 100;
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_L(L);
 		aknn.search();

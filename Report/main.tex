@@ -125,7 +125,7 @@
 
 \begin{figure}[h]
 \centering
-\subfigure[SIFT1M. QPS -- Accuracy]{
+\subfigure[SIFT1M. QPS -- Recall]{
 		\begin{tikzpicture}[scale=0.7]
 		\pgfplotsset{
 				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
@@ -134,7 +134,7 @@
 		\begin{semilogyaxis}[
 				width=12cm, height=6cm,
 				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
-				xlabel=Accuracy,
+				xlabel=Recall,
 				xmin=0.59, xmax=1,
 				ymin=100, ymax=30000, ytick={100,1000,10000},
 				grid style=dashed,
@@ -149,7 +149,7 @@
 		\end{semilogyaxis}
 		\end{tikzpicture}
 }
-\subfigure[SIFT1M. Accuracy -- $R$\newline 		($K = 100, E = 100, L = 100$)]{
+\subfigure[SIFT1M. Recall -- $R$\newline 		($K = 100, E = 100, L = 100$)]{
 		\begin{tikzpicture}[scale=0.7]
 		\pgfplotsset{
 				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
@@ -158,7 +158,7 @@
 		}
 		\begin{axis}[
 				height=6cm,
-				ylabel=Accuracy, ymajorgrids=true,
+				ylabel=Recall, ymajorgrids=true,
 				xlabel= 重启次数 $R$,
 				ymin=0.96, ymax=0.98, ytick={0.96, 0.966, 0.972, 0.98},
 				xmin=1, xmax=5, xtick={1, 2, 3, 4, 5},
@@ -171,7 +171,7 @@
 		\end{axis}
 		\end{tikzpicture}
 }
-\subfigure[GIST1M. QPS -- Accuracy]{
+\subfigure[GIST1M. QPS -- Recall]{
 		\begin{tikzpicture}[scale=0.7]
 		\pgfplotsset{
 				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
@@ -180,7 +180,7 @@
 		\begin{semilogyaxis}[
 				width=12cm, height=6cm,
 				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
-				xlabel=Accuracy,
+				xlabel=Recall,
 				xmin=0.53, xmax=1,
 				ymin=10, ymax=10000, ytick={10,100,1000,10000},
 				grid style=dashed,
@@ -194,7 +194,7 @@
 		\end{semilogyaxis}
 		\end{tikzpicture}
 }
-\subfigure[SIFT1M. Accuracy -- $R$\newline 		($K = 100, E = 100, L = 1200$)]{
+\subfigure[SIFT1M. Recall -- $R$\newline 		($K = 100, E = 100, L = 1200$)]{
 		\begin{tikzpicture}[scale=0.7]
 		\pgfplotsset{
 				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
@@ -203,7 +203,7 @@
 		}
 		\begin{axis}[
 				height=6cm,
-				ylabel=Accuracy, ymajorgrids=true,
+				ylabel=Recall, ymajorgrids=true,
 				xlabel= 重启次数 $R$,
 				ymin=0.999, ymax=1, ytick={0.999, 0.9992, 0.9993, 1},
 				xmin=1, xmax=5, xtick={1, 2, 3, 4, 5},
@@ -219,7 +219,7 @@
 \caption*{Figure 1. 搜索性能}
 \end{figure}
 
-搜索的结果如 Figure 1 所示，QPS 越小，精度越高。QPS 通过参数 $E, L$ 来控制，先增加 $E$，后增加 $L$。
+搜索的结果如 Figure 1 所示，QPS 越小，精度越高。QPS 通过参数 $E, L$ 来控制，先增加 $E$（10 - $k$），后增加 $L$（SIFT1M: 100 - 1200; GIST1M: 100 - 2500）。
 
 图（a）和 图（c）显示了不同的 $k$-NN 图上运行的效果，当 QPS 比较高时，$k$ 稍小的图精度较高；当 QPS 减小到一定程度时由参数 $L$ 主导，此时 $k$ 越大的图越有利。
 
@@ -227,7 +227,7 @@
 
 \subsubsection*{内存峰值}
 \begin{itemize}
-		\item SIFT1M：内存峰值为 0.983GB。
+		\item SIFT1M：内存峰值为 0.95GB。
 		\item GIST1M：内存峰值为 3.71GB。
 \end{itemize}
 
@@ -235,45 +235,280 @@
 %%%%%%%%%%%%%%%%%%%%
 \subsection{Candidate Pool 结构}
 
-\subsubsection*{固定大小的堆实现}
-可以用最大堆实现，堆的容量达到 $L$ 时，扩展的点和堆顶元素比较，如果距离比堆顶小，弹出堆顶，扩展点进入堆，结束搜索后依次弹出，翻转次序即为按距离从小到大的近邻点。也可以使用最小堆实现，找出叶子结点中距离最大的，如果扩展点距离比该结点小，就替换该结点，然后向上调整。本文用最小堆来实现 Candidate Pool。
+\paragraph*{固定大小的堆实现} 可以用最大堆实现，堆的容量达到 $L$ 时，扩展的点和堆顶元素比较，如果距离比堆顶小，弹出堆顶，扩展点进入堆，结束搜索后依次弹出，翻转次序即为按距离从小到大的近邻点。也可以使用最小堆实现，找出叶子结点中距离最大的，如果扩展点距离比该结点小，就替换该结点，然后向上调整。本文用最小堆来实现 Candidate Pool。
 
-\subsubsection*{插入排序实现}
-利用插入排序的思想，找到 Candidate Pool 中合适的位置进行插入，所有元素向后移动。
+\paragraph*{插入排序实现} 利用插入排序的思想，找到 Candidate Pool 中合适的位置进行插入，所有元素向后移动。
 
 \subsubsection*{结果评估}
 \begin{figure}[h]
 \centering
-\begin{tikzpicture}
+\setcounter{subfigure}{0}
+\subfigure[SIFT1M. QPS -- Recall]{
+\begin{tikzpicture}[scale=0.7]
 		\pgfplotsset{
 				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
 				every mark/.append style={color=black}
 		}
 		\begin{semilogyaxis}[
-				title=SIFT1M,
-				width=12cm, height=6cm,
+				%width=12cm, height=6cm,
 				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
-				xlabel=Accuracy,
+				xlabel=Recall,
 				xmin=0.73, xmax=1,
-				ymin=100, ymax=15000, ytick={100,1000,10000},
+				ymin=100, ymax=13000, ytick={100,1000,10000},
 				grid style=dashed,
 				legend columns=3,
+				legend style={
+						at={(0.5, 1.05)},
+						anchor=south
+				},
 				font=\footnotesize
 		]
-		\addplot+[sharp plot, color=red] table [x=Accuracy, y=QPS, col sep=comma] {data/1_diff_struct.csv};
-		\addplot+[sharp plot, color=blue] table [x=heapacc, y=heapqps, col sep=comma] {data/1_diff_struct.csv};
-		\addplot+[sharp plot, color=black] table [x=insacc, y=insqps, col sep=comma] {data/1_diff_struct.csv};
-		\legend{Vector, Fixed-size Heap, Insertion Sort}
+		\addplot+[sharp plot, color=red] table [x=sift-acc, y=sift-qps, col sep=comma] {data/1_diff_struct.csv};
+		\addplot+[sharp plot, color=blue] table [x=sift-hacc, y=sift-hqps, col sep=comma] {data/1_diff_struct.csv};
+		\addplot+[sharp plot, mark=triangle, color=black] table [x=sift-iacc, y=sift-iqps, col sep=comma] {data/1_diff_struct.csv};
+		\legend{Vector, Fixed-size Heap, InsertionSort}
 		\end{semilogyaxis}
 \end{tikzpicture}
+}
+\subfigure[GIST1M. QPS -- Recall]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				%width=12cm, height=6cm,
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.55, xmax=1,
+				ymin=10, ymax=5000, ytick={10,100,1000},
+				grid style=dashed,
+				legend columns=3,
+				legend style={
+						at={(0.5, 1.05)},
+						anchor=south
+				},
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=gist-acc, y=gist-qps, col sep=comma] {data/1_diff_struct.csv};
+		\addplot+[sharp plot, color=blue] table [x=gist-hacc, y=gist-hqps, col sep=comma] {data/1_diff_struct.csv};
+		\addplot+[sharp plot, mark=triangle, color=black] table [x=gist-iacc, y=gist-iqps, col sep=comma] {data/1_diff_struct.csv};
+		\legend{Vector, Fixed-size Heap, InsertionSort}
+		\end{semilogyaxis}
+		\end{tikzpicture}
+}
 
 \caption*{Figure 2. 不同 Candidate Pool 结构的搜索性能}
 \end{figure}
 
-从结果可以看出，使用堆结构或是插入排序可以提升搜索效率，堆结构和插入排序的效果相当。
+Figure 2 显示了在 100-NN 图上用不同结构实现 candidate pool 的搜索结果。从结果可以看出，使用堆结构或是插入排序可以提升搜索效率，堆结构和插入排序的效果相当。在 SIFT1M 上，效果提升明显；在 GIST1M 上，recall 较高时搜索效率有明显的提升。
+
+%%%%%%%%%%%%%%%%%%%%
+\subsection{使用 SSE/AVX 指令集}
+使用 AVX 指令集可以同时对 8 个浮点数进行计算。以两个向量的每 8 个分量为一组进行计算，先相减再平方，结果加到新的向量的 8 个分量中。将新向量的分量求和，再加上不足 8 个的分量的差值的平方和，等于两个向量的距离的平方，也就是所有分量的差值的平方和。最后开方，即为欧式距离。
+
+指令参考了 \cite{ref4}，计算方法参考了 \cite{ref5}。搜索的性能如 Figure 3 所示，从图中看出，AVX 指令集使得欧式距离的计算速度明显加快。
+
+\begin{figure}[h]
+\centering
+\setcounter{subfigure}{0}
+\subfigure[SIFT1M. QPS -- Recall]{
+\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				%width=12cm, height=6cm,
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.73, xmax=1,
+				ymin=100, ymax=10000, ytick={100,1000,10000},
+				grid style=dashed,
+				legend columns=3,
+				legend style={
+						at={(0.5, 1.05)},
+						anchor=south
+				},
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=sift-acc, y=sift-qps, col sep=comma] {data/1_avx.csv};
+		\addplot+[sharp plot, mark=triangle, color=blue] table [x=sift-iacc, y=sift-iqps, col sep=comma] {data/1_avx.csv};
+		\addplot+[sharp plot, color=black] table [x=sift-iavx-acc, y=sift-iavx-qps, col sep=comma] {data/1_avx.csv};
+		\legend{Vector, InsertionSort, InsertionSort+AVX}
+		\end{semilogyaxis}
+\end{tikzpicture}
+}
+\subfigure[GIST1M. QPS -- Recall]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				%width=12cm, height=6cm,
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.55, xmax=1,
+				ymin=10, ymax=3000, ytick={10,100,1000},
+				grid style=dashed,
+				legend columns=3,
+				legend style={
+						at={(0.5, 1.05)},
+						anchor=south
+				},
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=gist-acc, y=gist-qps, col sep=comma] {data/1_avx.csv};
+		\addplot+[sharp plot, mark=triangle, color=blue] table [x=gist-iacc, y=gist-iqps, col sep=comma] {data/1_avx.csv};
+		\addplot+[sharp plot, color=black] table [x=gist-iavx-acc, y=gist-iavx-qps, col sep=comma] {data/1_avx.csv};
+		\legend{Vector, InsertionSort, InsertionSort+AVX}
+		\end{semilogyaxis}
+		\end{tikzpicture}
+}
+
+\caption*{Figure 3. 使用 SSE/AVX 指令集优化欧氏距离计算性能}
+\end{figure}
+
+\begin{figure}[!h]
+\centering
+\setcounter{subfigure}{0}
+\subfigure[SIFT1M. QPS -- Recall on Windows]{
+\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.59, xmax=1,
+				ymin=100, ymax=17000, ytick={100,1000,10000},
+				grid style=dashed,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=s-acc, y=s-qps, col sep=comma] {data/1_mmap.csv};
+		\addplot+[sharp plot, mark=triangle, color=blue] table [x=sm-acc, y=sm-qps, col sep=comma] {data/1_mmap.csv};
+		\legend{Normal, MMAP}
+		\end{semilogyaxis}
+\end{tikzpicture}
+}
+\subfigure[GIST1M. QPS -- Recall on Windows]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.56, xmax=1,
+				ymin=0, ymax=5000, ytick={0,1,10,100,1000},
+				grid style=dashed,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=g-acc, y=g-qps, col sep=comma] {data/1_mmap.csv};
+		\addplot+[sharp plot, mark=triangle, color=blue] table [x=gm-acc, y=gm-qps, col sep=comma] {data/1_mmap.csv};
+		\legend{Normal, MMAP}
+		\end{semilogyaxis}
+		\end{tikzpicture}
+}
+\subfigure[SIFT1M. QPS -- Recall on Linux]{
+\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.59, xmax=1,
+				ymin=100, ymax=17000, ytick={100,1000,10000},
+				grid style=dashed,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=sl-acc, y=sl-qps, col sep=comma] {data/1_mmap.csv};
+		\addplot+[sharp plot, mark=triangle, color=blue] table [x=slm-acc, y=slm-qps, col sep=comma] {data/1_mmap.csv};
+		\legend{Normal, MMAP}
+		\end{semilogyaxis}
+\end{tikzpicture}
+}
+\subfigure[GIST1M. QPS -- Recall on Linux]{
+		\begin{tikzpicture}[scale=0.7]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.56, xmax=1,
+				ymin=0, ymax=5000, ytick={0,1,10,100,1000},
+				grid style=dashed,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=gl-acc, y=gl-qps, col sep=comma] {data/1_mmap.csv};
+		\addplot+[sharp plot, mark=triangle, color=blue] table [x=glm-acc, y=glm-qps, col sep=comma] {data/1_mmap.csv};
+		\legend{Normal, MMAP}
+		\end{semilogyaxis}
+		\end{tikzpicture}
+}
+\caption*{Figure 4. 使用内存映射技术}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%
+\subsection{使用内存映射文件/mmap 技术}
+使用内存映射文件可以避免将所有数据载入内存。将文件映射到进程的内存空间，发生缺页中断时，才把数据换入内存。 Figure 4 显示了使用内存映射文件前后的搜索效果。由于 SIFT1M 的数据较小，一次性换入的数据较多，使得搜索速度立刻跟上不使用内存映射文件的速度。 而在 GIST1M 上，数据被逐步换入，搜索速度缓慢上升。同时 Windows 和 Linux 下运行的结果略有不同，Linux 下一开始换入的数据似乎更多。
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 进阶题
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{进阶题}
+
+%%%%%%%%%%%%%%%%%%%%
+\subsection{调参过程}
+Product Quantization（向量量化）将向量空间分割为 M 个子空间，每个空间进行 k-means 聚类，用类中心点近似替代该类的所有点 \cite{ref6}。因此，子空间数量 M 和类的数量 k 是人为给定且可以调整的参数。
+
+k 可以看成一个码字能表示的最大范围，如果一个码字使用 1 个字节（8 位）的整数，k 最大可以是 256。k 越大，类的区域越小，类中心的误差越小，但是构建码表所需的空间和时间消耗越大。为了节省空间和时间，将码字设为一个字节，同时为了利用码字的表示范围，将 k 设为能够表示的最大值，即 256。
+
+剩下需要调整的是 M 。为了使各个子空间的维度相等，将 M 设为向量总维度 d 的因数。因此可以设定 $M \in \{2^k | 2 <= 2^k <= 128, k = 1, 2, ...\}$。 使用网格搜索法得到，当 M = 64 时，recall 最大。
+
+\subsection{结果评估}
+
+本题用第三方代码 \cite{ref7} 完成了码表的构建， 搜索的性能如 Figure 5 所示。
+
+\begin{figure}[h]
+\centering
+\setcounter{subfigure}{0}
+\subfigure[SIFT1M. QPS -- Recall]{
+\begin{tikzpicture}[scale=0.8]
+		\pgfplotsset{
+				every axis/.append style={line width=1pt,tick style={line width=0.6pt}},
+				every mark/.append style={color=black}
+		}
+		\begin{semilogyaxis}[
+				log basis y=10, ylabel=Queries Per Second, ymajorgrids=true,
+				xlabel=Recall,
+				xmin=0.39, xmax=1,
+				ymin=100, ymax=18000, ytick={100,1000,10000},
+				grid style=dashed,
+				font=\footnotesize
+		]
+		\addplot+[sharp plot, color=red] table [x=s-acc, y=s-qps, col sep=comma] {data/2.csv};
+		\addplot+[sharp plot, color=blue] table [x=s-opq-acc, y=s-opq-qps, col sep=comma] {data/2.csv};
+		\legend{Normal, OPQ}
+		\end{semilogyaxis}
+\end{tikzpicture}
+}
+\caption*{Figure 5. 使用 Optimized Product Quantization}
+\end{figure}
+
+\subsubsection*{内存峰值}
+在 SIFT1M 上运行的内存峰值为 0.56GB，相比于基础题的 0.95GB，内存占用减少了。
 
 \printbibliography[
 heading=bibintoc,
-title = {参考文献}
+title = {References}
 ]
 \end{document}

@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 {
 	omp_set_num_threads(4);
 	freopen("../log.txt", "w", stdout);
-	AKNN_T aknn(sift::basename, sift::queryname, sift::graphname, sift::gtname);
+	AKNN_T aknn(gist::basename, gist::queryname, gist::graphname, gist::gtname);
 	aknn.display();
 	const uint K = 100;
 	uint L = K, E = K, R = 1;
@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	}
 	E = K;
 	aknn.set_E(E);
-	for (L = 200; L <= 1200; L += 100) {
+	for (L = 200; L <= 2500; L += 100) {
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_L(L);
 		aknn.search();

@@ -3,15 +3,15 @@
 #include <iostream>
 #include <algorithm>
 #include <iomanip>
-#include <ctime>
 #include <cstring>
 #include <cmath>
+#include <chrono>
 #include <assert.h>
 #include <omp.h>
 #include <immintrin.h>
 using namespace std;
 
-AKNN::AKNN(char * basename, char * queryname, char * graphname, char * gtname)
+AKNN::AKNN(const char * basename, const char * queryname, const char * graphname, const char * gtname)
 {
 	ready = false;
 	load(basename, queryname, graphname, gtname);
@@ -96,7 +96,7 @@ void AKNN::display_data(int * data, uint num, uint dim)
 	cout << "...\n\n";
 }
 
-void AKNN::load(char *basename, char *queryname, char *graphname, char *gtname)
+void AKNN::load(const char *basename, const char *queryname, const char *graphname, const char *gtname)
 {
 	clock_t start = clock();
 	if (strlen(basename) > 0) {
@@ -127,7 +127,7 @@ void AKNN::load(char *basename, char *queryname, char *graphname, char *gtname)
 	cerr << "cost " << (clock() - start) * 1.0 / CLOCKS_PER_SEC << " s\n";
 }
 
-void AKNN::load_data(char * filename, float *& data, uint & num, uint & dim)
+void AKNN::load_data(const char * filename, float *& data, uint & num, uint & dim)
 {
 	ifstream in(filename, ios::binary);
 	if (!in.is_open()) {
@@ -149,7 +149,7 @@ void AKNN::load_data(char * filename, float *& data, uint & num, uint & dim)
 	in.close();
 }
 
-void AKNN::load_data(char * filename, int *& data, uint & num, uint & dim)
+void AKNN::load_data(const char * filename, int *& data, uint & num, uint & dim)
 {
 	ifstream in(filename, ios::binary);
 	if (!in.is_open()) {
@@ -193,8 +193,8 @@ float AKNN::distance(float * vec1, float * vec2, uint dim)
 	const float *p1 = vec1, *p2 = vec2;
 	for (int i = 0; i < cntBlock; i++)
 	{
-		mload1 = _mm256_load_ps(p1);
-		mload2 = _mm256_load_ps(p2);
+		mload1 = _mm256_loadu_ps(p1);
+		mload2 = _mm256_loadu_ps(p2);
 		mSub = _mm256_sub_ps(mload1, mload2);
 		mSum = _mm256_fmadd_ps(mSub, mSub, mSum);
 		p1 += nBlockWidth;
@@ -204,11 +204,17 @@ float AKNN::distance(float * vec1, float * vec2, uint dim)
 	mSum = _mm256_hadd_ps(mSum, mSum);
 
 	float sum = 0;
+#ifdef __linux__
+	sum += mSum[0];
+	sum += mSum[4];
+#else
 	sum += mSum.m256_f32[0];
 	sum += mSum.m256_f32[4];
+#endif
 	for(int i = 0; i < cntRem; i++) sum += (p1[i] - p2[i]) * (p1[i] - p2[i]);
 
-	/*for (int i = 0; i < dim; i++) {
+	/*float sum = 0;
+	for (int i = 0; i < dim; i++) {
 		sum += (vec1[i] - vec2[i]) * (vec1[i] - vec2[i]);
 	}*/
 	return sqrt(sum / dim);
@@ -236,7 +242,8 @@ void AKNN::search()
 	srand((uint)time(0));
 	uint acc = 0;
 
-	clock_t start = clock();
+	//clock_t start = clock();
+	auto start = chrono::system_clock::now();
 #pragma omp parallel for reduction(+:acc)
 	for (int q = 0; q < searchRes.num; q++) {
 		vector<uint> neighbors;
@@ -259,7 +266,8 @@ void AKNN::search()
 			searchRes.data[q * params.K + i] = neighbors[i];
 		}
 	}
-	qtime += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
+	auto end = chrono::system_clock::now();
+	qtime += chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0;
 
 	cerr << "\nquery time: " << qtime << "\nQPS: " << searchRes.num * 1.0 / qtime
 		<< "\naverage accuracy: " << acc / (1.0 * searchRes.num * searchRes.dim) << endl << endl;
@@ -270,8 +278,8 @@ void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uin
 	float * ptr_q = get_ptr(query.data, q, query.dim);
 	float initDis = distance(get_ptr(base.data, initPoint, base.dim), ptr_q, base.dim);
 
-	//vector<Neighbor> S;
-	//S.push_back(Neighbor(initPoint, initDis));
+	/*vector<Neighbor> S;
+	S.push_back(Neighbor(initPoint, initDis));*/
 	vector<Neighbor> S(L + 1);
 	S[0] = Neighbor(initPoint, initDis);
 	size_t end = 0;
@@ -291,9 +299,8 @@ void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uin
 
 		uint id = S[i].id;
 		vis[id] = true;
-
-		//if (q == 0) cout << i << endl;
 		
+		// add neighbors to the candidate pool
 		int * neighbors = get_ptr(graph.data, id, graph.dim);
 		for (j = 0; j < E; j++) {
 			if (vis[neighbors[j]] || in[neighbors[j]]) continue;
@@ -304,18 +311,13 @@ void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uin
 			//S.push_back(Neighbor(neighbors[j], dis));
 			in[neighbors[j]] = true;
 		}
-		//sort(S.begin(), S.end());
-		//if (S.size() > L) S.resize(L);
-		/*if (q == 0) {
-			cout << "size: " << S.size() << endl;
-			for (j = 0; j < S.size(); j++) cout << S[j].id << ": " << S[j].distance << endl;
-			cout << endl;
-		}*/
+		/*sort(S.begin(), S.end());
+		if (S.size() > L) S.resize(L);*/
 	}
 	for (i = 0; i < K && i < S.size(); i++) res[i] = S[i].id;
 }
 
-void AKNN::save(char *outputname)
+void AKNN::save(const char *outputname)
 {
 	ofstream out(outputname, ios::binary);
 	if (!out.is_open()) {
@@ -331,19 +333,20 @@ void AKNN::save(char *outputname)
 			if ((j - i * searchRes.dim) && (j - i * searchRes.dim) % 17 == 0) cout << endl;
 			cout << setw(7) << searchRes.data[j];
 		}
-		cout << endl << endl;
+		cout << "\n\n";
 	}
 	cout << "...\n\n";
 	out.close();
 
-	/*cout << "groundtruth:\n";
-	for (uint i = 0; i < searchRes.num; i++) {
+	cout << "groundtruth:\n";
+	for (uint i = 0; i < num; i++) {
 		for (uint j = i * groundtruth.dim; j < i * groundtruth.dim + searchRes.dim; j++) {
 			if ((j - i * groundtruth.dim) && (j - i * groundtruth.dim) % 17 == 0) cout << endl;
 			cout << setw(7) << groundtruth.data[j];
 		}
-		cout << endl << endl;
-	}*/
+		cout << "\n\n";
+	}
+	cout << "...\n\n";
 }
 
 void AKNN::gen_lknn(uint K, char * lknnName)
