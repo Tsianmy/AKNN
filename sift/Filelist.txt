@@ -1,4 +1,0 @@
-sift_100NN_100.graph
-sift_base.fvecs
-sift_groundtruth.ivecs
-sift_query.fvecs

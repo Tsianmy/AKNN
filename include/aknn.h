@@ -32,10 +32,10 @@ struct Data {
 class AKNN {
 public:
 	AKNN() {}
-	AKNN(char *basename, char *queryname, char *graphname, char *gtname);
-	void load(char *basename, char *queryname, char *graphname, char *gtname);
+	AKNN(const char *basename, const char *queryname, const char *graphname, const char *gtname);
+	void load(const char *basename, const char *queryname, const char *graphname, const char *gtname);
 	void search();
-	void save(char *outputname);
+	void save(const char *outputname);
 	void init_params(Param _params);
 	void display();
 	void set_E(uint E);
@@ -58,8 +58,8 @@ protected:
 	Data<int> searchRes;
 	std::vector<std::unordered_set<uint>> gtset;
 
-	void load_data(char* filename, float*& data, uint& num, uint& dim);
-	void load_data(char* filename, int*& data, uint& num, uint& dim);
+	void load_data(const char* filename, float*& data, uint& num, uint& dim);
+	void load_data(const char* filename, int*& data, uint& num, uint& dim);
 	void display_data(float* data, uint num, uint dim);
 	void display_data(int* data, uint num, uint dim);
 
