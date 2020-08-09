@@ -3,26 +3,26 @@
 #include "aknn_test.h"
 using namespace std;
 
-namespace sift {
-	char * basename = (char *)"../sift/sift_base.fvecs",
-		*queryname = (char *)"../sift/sift_query.fvecs",
-		*graphname = (char *)"../sift/sift_100NN_100.graph",
-		*gtname = (char *)"../sift/sift_groundtruth.ivecs",
-		*outname = (char *)"../sift/searchRes.ivecs";
-}
-namespace gist {
-	char * basename = (char *)"../gist/gist_base.fvecs",
-		*queryname = (char *)"../gist/gist_query.fvecs",
-		*graphname = (char *)"../gist/gist_100NN_100.graph",
-		*gtname = (char *)"../gist/gist_groundtruth.ivecs",
-		*outname = (char *)"../gist/searchRes.ivecs";
-}
+#define SIFT
+#ifdef SIFT
+const char * basename = "../data/sift_base.fvecs",
+			*queryname = "../data/sift_query.fvecs",
+			*graphname = "../data/sift_100NN_100.graph",
+			*gtname = "../data/sift_groundtruth.ivecs",
+			*outname = "../data/searchRes.ivecs";
+#elif GIST
+const char * basename = "../data/gist_base.fvecs",
+			*queryname = "../data/gist_query.fvecs",
+			*graphname = "../data/gist_100NN_100.graph",
+			*gtname = "../data/gist_groundtruth.ivecs",
+			*outname = "../data/searchRes.ivecs";
+#endif
 
 int main(int argc, char** argv)
 {
 	omp_set_num_threads(4);
 	freopen("../log.txt", "w", stdout);
-	AKNN_T aknn(gist::basename, gist::queryname, gist::graphname, gist::gtname);
+	AKNN_T aknn(basename, queryname, graphname, gtname);
 	//aknn.display();
 	const uint K = 100;
 	uint L = K, E = 100, R = 1;
@@ -51,6 +51,7 @@ int main(int argc, char** argv)
 	}*/
 	
 	/*cerr << "save...\n";
-	aknn.save(sift::outname);*/
+	aknn.save(outname);*/
 	return 0;
 }
+

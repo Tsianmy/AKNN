@@ -8,7 +8,7 @@
 #include <windows.h>
 #endif
 
-AKNN_T::AKNN_T(char *basename, char *queryname, char *graphname, char *gtname)
+AKNN_T::AKNN_T(const char *basename, const char *queryname, const char *graphname, const char *gtname)
 {
 	load(basename, queryname, graphname, gtname);
 }
@@ -30,7 +30,7 @@ void AKNN_T::display()
 }
 
 
-void AKNN_T::load_base(char *basename)
+void AKNN_T::load_base(const char *basename)
 {
 	cerr << "load_base called\n";
 #ifdef __linux__
@@ -58,7 +58,7 @@ void AKNN_T::load_base(char *basename)
 #endif
 }
 
-void AKNN_T::load(char *basename, char *queryname, char *graphname, char *gtname)
+void AKNN_T::load(const char *basename, const char *queryname, const char *graphname, const char *gtname)
 {
 	clock_t start = clock();
 	if (strlen(basename) > 0) {

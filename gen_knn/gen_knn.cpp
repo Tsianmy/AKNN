@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include "../include/aknn.h"
 using namespace std;
 

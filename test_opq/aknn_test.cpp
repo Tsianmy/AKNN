@@ -1,5 +1,7 @@
 #include "aknn_test.h"
 #include "../include/aknn.cpp"
+#include <faiss/IndexPreTransform.h>
+#include <faiss/IndexPQ.h>
 
 AKNN_T::AKNN_T(const char *basename, const char *queryname, const char *graphname, const char *gtname)
 {
@@ -107,15 +109,165 @@ void AKNN_T::load_train(const char * Rname, const char * codename, const char * 
 	}
 }
 
+void AKNN_T::save_fvecs(const char * filename, const float * x, int rows, int cols)
+{
+	std::ofstream out(filename, std::ios::binary);
+	if (!out.is_open()) {
+		printf("open file error\n");
+		return;
+	}
+	for (int i = 0; i < rows; i++) {
+		out.write((char*)&cols, 4);
+		out.write((char *)(x + i * cols), cols * 4);
+	}
+	out.close();
+}
+
+void AKNN_T::save_codes(const char * filename, uint8_t * x, int rows, int cols)
+{
+	std::ofstream out(filename, std::ios::binary);
+	if (!out.is_open()) {
+		printf("open file error\n");
+		return;
+	}
+	for (int i = 0; i < rows; i++) {
+		out.write((char*)&cols, 4);
+		out.write((char *)(x + i * cols), cols * sizeof(uint8_t));
+	}
+	out.close();
+}
+
+#define opq
+
+void AKNN_T::train(const char * basename, const char * Rname, const char * centroidname, const char * codename)
+{
+	if (strlen(basename) == 0) return;
+	cerr << "read base " << basename << endl;
+	AKNN::load_data(basename, base.data, base.num, base.dim);
+	cerr << "dimention: " << base.dim << endl
+		<< "points' num: " << base.num << endl;
+
+	size_t nt = base.num, d = base.dim;
+	const float * xt = base.data;
+	int _M = 64, _nbits = 8, bestM = _M;
+	float minerr = 0x3f3f3f3f;
+
+using namespace faiss;
+	IndexPreTransform * index = nullptr;
+
+	for (int M = _M; M <= _M; M *= 2) {
+		for (int nbits = _nbits; nbits <= _nbits; nbits *= 2) {
+			fprintf(stderr, "M: %d	nbits: %d\n", M, nbits);
+			fprintf(stderr, "  Preparing index OPQ d=%ld\n", d);
+			IndexPreTransform * index_pt = nullptr;
+			{
+				IndexPQ *index_pq = new IndexPQ(d, M, nbits, MetricType::METRIC_L2);
+				index_pt = new IndexPreTransform(index_pq);
+				index_pt->own_fields = true;
+#ifdef opq
+				VectorTransform * vt = new OPQMatrix(d, M);
+				index_pt->prepend_transform(vt);
+#endif
+			}
+
+			fprintf(stderr, "  Training on %ld vectors\n", nt);
+			auto start = chrono::system_clock::now();
+			float err = index_pt->mytrain(nt, xt);
+			auto end = chrono::system_clock::now();
+			fprintf(stderr, "  Time cost: %.3f s\n", chrono::duration<float>(end - start).count());
+			fprintf(stderr, "  PQ Distortion: obj=%g\n", err);
+
+			if (err < minerr) {
+				minerr = err;
+				bestM = M;
+				index = index_pt;
+			}
+			else delete index_pt;
+		}
+	}
+
+	fprintf(stderr, "bestM: %d minerr: %f\n", bestM, minerr);
+
+#ifdef opq
+	OPQMatrix * opqm = dynamic_cast<faiss::OPQMatrix *>(index->chain[0]);
+	float * r = opqm->A.data();
+	save_fvecs(Rname, r, d, d);
+#endif
+	/*{
+		std::vector<double> tmpR(opqm->A.begin(), opqm->A.end());
+		dynamic_cast<faiss::LinearTransform *>(opqm)->verbose = true;
+		opqm->print_if_verbose("R", tmpR, d, d);
+		dynamic_cast<faiss::LinearTransform *>(opqm)->verbose = false;
+	}*/
+
+	IndexPQ * index_pq = dynamic_cast<IndexPQ *>(index->index);
+	index_pq->add(nt, xt);
+	uint8_t * codes = index_pq->codes.data();
+	fprintf(stderr, "  %d * %d = %d codes.size: %d\n", nt, bestM, nt * bestM, index_pq->codes.size());
+
+	int num = 3;
+	for (int i = 0; i < num; i++) {
+		for (int j = 0; j < bestM; j++) {
+			printf("%d ", codes[i * bestM + j]);
+		}
+		printf("\n");
+	}
+	save_codes(codename, codes, nt, bestM);
+
+	float * centab = index_pq->pq.centroids.data();
+	fprintf(stderr, "  %d * %d = %d centroids.size: %d\n", bestM * index_pq->pq.ksub,
+		index_pq->pq.dsub, index_pq->pq.ksub * d, index_pq->pq.centroids.size());
+	save_fvecs(centroidname, centab, bestM * index_pq->pq.ksub, index_pq->pq.dsub);
+
+	delete[] base.data;
+	base.data = nullptr;
+	delete index;
+}
+
+float AKNN_T::L2_sqr(float * vec1, float * vec2, uint dim)
+{
+	int nBlockWidth = 8;
+	int cntBlock = dim / nBlockWidth;
+	int cntRem = dim % nBlockWidth;
+
+	__m256 mload1, mload2,
+		mSub = _mm256_setzero_ps(),
+		mSum = _mm256_setzero_ps();
+	float *p1 = vec1, *p2 = vec2;
+	for (int i = 0; i < cntBlock; i++)
+	{
+		mload1 = _mm256_loadu_ps(p1);
+		mload2 = _mm256_loadu_ps(p2);
+		mSub = _mm256_sub_ps(mload1, mload2);
+		mSum = _mm256_fmadd_ps(mSub, mSub, mSum);
+		p1 += nBlockWidth;
+		p2 += nBlockWidth;
+	}
+	mSum = _mm256_hadd_ps(mSum, mSum);
+	mSum = _mm256_hadd_ps(mSum, mSum);
+
+	float sum = 0;
+#ifdef __linux__
+	sum += mSum[0];
+	sum += mSum[4];
+#else
+	sum += mSum.m256_f32[0];
+	sum += mSum.m256_f32[4];
+#endif
+	for(int i = 0; i < cntRem; i++) sum += (p1[i] - p2[i]) * (p1[i] - p2[i]);
+
+	return sum;
+}
+
 void AKNN_T::compute_dis_table(std::vector<float>& distance_table, uint q)
 {
 	float * ptr_q = get_ptr(query.data, q, query.dim);
 	for (uint m = 0; m < pq.M; m++) {
-		float * subp1 = ptr_q + m * pq.dsub;
 		for (uint cid = 0; cid < pq.ksub; cid++) {
-			float * subp2 = pq.centroids.data() + (m * pq.ksub + cid) * pq.dsub;
-			distance_table[m * pq.ksub + cid] = distance(subp1, subp2, pq.dsub);
+			float * ptr_c = pq.centroids.data() + (m * pq.ksub + cid) * pq.dsub;
+			distance_table[m * pq.ksub + cid] = L2_sqr(ptr_q, ptr_c, pq.dsub);
 		}
+		ptr_q += pq.dsub;
 	}
 }
 
@@ -189,7 +341,7 @@ float AKNN_T::compute_PQdistance(uint pqid, std::vector<float> & distance_table)
 		dis += distance_table[m * pq.ksub + code[m]]; m++;
 	}
 
-	return dis;
+	return sqrt(dis);
 }
 
 void AKNN_T::get_neighbors(std::vector<uint> & res, std::vector<float> & distance_table,

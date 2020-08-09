@@ -190,7 +190,7 @@ float AKNN::distance(float * vec1, float * vec2, uint dim)
 	__m256 mload1, mload2,
 		mSub = _mm256_setzero_ps(),
 		mSum = _mm256_setzero_ps();
-	const float *p1 = vec1, *p2 = vec2;
+	float *p1 = vec1, *p2 = vec2;
 	for (int i = 0; i < cntBlock; i++)
 	{
 		mload1 = _mm256_loadu_ps(p1);
@@ -217,7 +217,7 @@ float AKNN::distance(float * vec1, float * vec2, uint dim)
 	for (int i = 0; i < dim; i++) {
 		sum += (vec1[i] - vec2[i]) * (vec1[i] - vec2[i]);
 	}*/
-	return sqrt(sum / dim);
+	return sqrt(sum);
 }
 
 float * AKNN::get_ptr(float * begin, const uint index, const uint dim)
