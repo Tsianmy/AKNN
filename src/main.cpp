@@ -10,7 +10,7 @@ const char * basename = "../data/sift_base.fvecs",
 			*graphname = "../data/sift_100NN_100.graph",
 			*gtname = "../data/sift_groundtruth.ivecs",
 			*outname = "../data/searchRes.ivecs";
-#elif GIST
+#elif defined GIST
 const char * basename = "../data/gist_base.fvecs",
 			*queryname = "../data/gist_query.fvecs",
 			*graphname = "../data/gist_100NN_100.graph",

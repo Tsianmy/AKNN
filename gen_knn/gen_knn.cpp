@@ -7,7 +7,7 @@ int main(int argc, char** argv)
 {
 	char * basename = "",
 		*queryname = "",
-		*graphname = "../gist/gist_100NN_100.graph",
+		*graphname = "../data/gist_100NN_100.graph",
 		*gtname = "",
 		*outname = "";
 	AKNN aknn(basename, queryname, graphname, gtname);
@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 	for (uint i = 0; i < sizeof(lk) / sizeof(uint); i++) {
 		cerr << "k: " << lk[i] << endl;
 		sprintf(buf, "%dNN_%d.graph", lk[i], lk[i]);
-		char filename[50] = "../gist/gist_";
+		char filename[50] = "../data/gist_";
 		strcat(filename, buf);
 		aknn.gen_lknn(lk[i], filename);
 		cerr << endl;

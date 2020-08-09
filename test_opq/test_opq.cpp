@@ -3,7 +3,7 @@
 #include "aknn_test.h"
 using namespace std;
 
-#define SIFT
+#define GIST
 #ifdef SIFT
 const char * basename = "../data/sift_base.fvecs",
 			*queryname = "../data/sift_query.fvecs",
@@ -13,7 +13,7 @@ const char * basename = "../data/sift_base.fvecs",
 			*codename = "../data/sift_pqcodes.ivecs",
 			*centroidname = "../data/sift_centab.fvecs",
 			*outname = "../data/searchRes.ivecs";
-#elif GIST
+#elif defined GIST
 const char * basename = "../data/gist_base.fvecs",
 			*queryname = "../data/gist_query.fvecs",
 			*graphname = "../data/gist_100NN_100.graph",
