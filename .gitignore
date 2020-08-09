@@ -10,6 +10,8 @@
 log.*
 backup/
 image/
+build/
+*.exe
 
 # User-specific files
 *.rsuser

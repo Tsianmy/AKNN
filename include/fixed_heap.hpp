@@ -118,16 +118,16 @@ public:
 template<typename T>
 void fixedMinHeap<T>::push(T x)
 {
-	assert(_size <= _capacity);
-	if (_size < _capacity) {
-		arr[_size++] = x;
-		push_heap(arr, arr + _size, greater<T>());
+	assert(this->_size <= this->_capacity);
+	if (this->_size < this->_capacity) {
+		this->arr[this->_size++] = x;
+		push_heap(this->arr, this->arr + this->_size, greater<T>());
 	}
 	else {
-		T * mn = max_element(arr + _size / 2, arr + _size);
+		T * mn = max_element(this->arr + this->_size / 2, this->arr + this->_size);
 		if (x < *mn) {
 			*mn = x;
-			push_heap(arr, mn + 1, greater<T>());
+			push_heap(this->arr, mn + 1, greater<T>());
 		}
 	}
 }
@@ -135,9 +135,9 @@ void fixedMinHeap<T>::push(T x)
 template<typename T>
 inline void fixedMinHeap<T>::pop()
 {
-	assert(_size > 0);
-	pop_heap(arr, arr + _size, greater<T>());
-	_size--;
+	assert(this->_size > 0);
+	pop_heap(this->arr, this->arr + this->_size, greater<T>());
+	this->_size--;
 }
 
 #endif

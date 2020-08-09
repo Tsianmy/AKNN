@@ -12,6 +12,8 @@ const char * basename = "../data/sift_base.fvecs",
 			*Rname = "../data/sift_R.fvecs",
 			*codename = "../data/sift_pqcodes.ivecs",
 			*centroidname = "../data/sift_centab.fvecs",
+			*idxname = "../data/sift_coarseidx.ivecs",
+			*coarsename = "../data/sift_coarse.fvecs",
 			*outname = "../data/searchRes.ivecs";
 #elif GIST
 const char * basename = "../data/gist_base.fvecs",
@@ -30,10 +32,10 @@ int main(int argc, char** argv)
 	freopen("log.txt", "w", stdout);
 #ifdef TRAIN
 	AKNN_T aknn("", "", "", "");
-	aknn.train(basename, Rname, centroidname, codename);
+	aknn.train(basename, coarsename, idxname, centroidname, codename);
 #else
 	AKNN_T aknn(basename, queryname, graphname, gtname);
-	aknn.load_train(Rname, codename, centroidname);
+	aknn.load_train(Rname, coarsename, idxname, codename, centroidname);
 	aknn.display();
 	const uint K = 100;
 	uint L = K, E = 100, R = 1;
