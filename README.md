@@ -27,5 +27,5 @@ Additionally, **KNN-graphs** built on the dataset are needed. Their paths should
 - **test_heap:** Use a fixed-size heap to implement the candidate pool.
 - **test_mmap:** Avoid loading base data by mmap.
 - **test_opq:** Avoid loading base data by optimized product quantization.
-- **test_new:** A new method to combine graph-based search and product quantization.
+- **test_new:** A new method which combines graph-based search and product quantization.
 - **gen_knn:** Generate a k-NN graph (k <= 100).
