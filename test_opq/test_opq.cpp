@@ -3,7 +3,7 @@
 #include "aknn_test.h"
 using namespace std;
 
-#define GIST
+#define SIFT
 #ifdef SIFT
 const char * basename = "../data/sift_base.fvecs",
 			*queryname = "../data/sift_query.fvecs",
@@ -40,8 +40,8 @@ int main(int argc, char** argv)
 	Param params(K, L, E);
 	aknn.init_params(params);
 	cerr << "search...\n";
-	aknn.search();
-	/*for (E = 10; E <= K; E += 10) {
+	//aknn.search();
+	for (E = 10; E <= K; E += 10) {
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_E(E);
 		aknn.search();

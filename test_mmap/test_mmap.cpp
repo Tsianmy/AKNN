@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	}
 	E = K;
 	aknn.set_E(E);
-	for (L = 200; L <= 2500; L += 100) {
+	for (L = 200; L <= 1200; L += 100) {
 		cerr << "E: " << E << " L: " << L << endl;
 		aknn.set_L(L);
 		aknn.search();
