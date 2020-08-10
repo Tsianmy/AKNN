@@ -1,6 +1,6 @@
-## Test_structure
+## Test_mmap
 
-These codes are used to explore the structure of input data.
+Avoid loading base data by mmap.
 
 ##### Usage
 

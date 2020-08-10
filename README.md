@@ -23,7 +23,7 @@ Additionally, **KNN-graphs** built on the dataset are needed. Their paths should
 ### Modules
 
 - **test_structure:** Check the structure of data.
-- **src:** Base module for approximate nearest neighbor search with AVX intrinsics and candidate pool implemented by insertion sort.
+- **base:** Base module for approximate nearest neighbor search with AVX intrinsics and candidate pool implemented by insertion sort.
 - **test_heap:** Use a fixed-size heap to implement the candidate pool.
 - **test_mmap:** Avoid loading base data by mmap.
 - **test_opq:** Avoid loading base data by optimized product quantization.

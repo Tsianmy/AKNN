@@ -1,6 +1,6 @@
-## Test_structure
+## Test_heap
 
-These codes are used to explore the structure of input data.
+Use a fixed-size heap to implement the candidate pool.
 
 ##### Usage
 
