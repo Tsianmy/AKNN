@@ -1,6 +1,6 @@
-## Test_structure
+## Gen_knn
 
-These codes are used to explore the structure of input data.
+Generate a k-NN graph (k <= 100).
 
 ##### Usage
 
