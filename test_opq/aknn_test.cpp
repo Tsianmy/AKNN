@@ -149,7 +149,7 @@ void AKNN_T::train(const char * basename, const char * Rname, const char * centr
 
 	size_t nt = base.num, d = base.dim;
 	const float * xt = base.data;
-	int _M = 128, _nbits = 8, bestM = _M;
+	int _M = 64, _nbits = 8, bestM = _M;
 	float minerr = 0x3f3f3f3f;
 
 using namespace faiss;
