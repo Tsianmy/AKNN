@@ -10,7 +10,7 @@ This is a project of AKNN.
 	
 - **Dependencies:**
 	- Faiss library (https://github.com/facebookresearch/faiss)
-	- Intel MKL
+	- Intel MKL or Openblas
 
 ### DataSet
 
