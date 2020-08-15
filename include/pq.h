@@ -1,22 +1,33 @@
-#ifndef PQ_H
-#define PQ_H
+#pragma once
+
+#include "util.h"
+#include <cstdint>
+
+namespace aknn {
+
+struct PQparameter
+{
+	idx_t M;
+	idx_t klq;
+};
+
+using code_t = uint8_t;
 
 struct ProductQuantizer
 {
-	uint M, d, dsub, n, ksub;
-	std::vector<float> R;			// d * d
-	std::vector<float> centroids;	// (M * ksub) * dsub
-	std::vector<uint8_t> codes;		// n * M
+	idx_t M, dsub, ksub;
+	float * R = nullptr;			// d * d
+	float * centroids = nullptr;	// (M * ksub) * dsub
+	code_t * codes = nullptr;		// n * M
 };
 
-struct ProductQuantizerResi
+using lqc_t = uint16_t;
+
+struct LevelQuantizer
 {
-	uint M, d, dsub, n, ksub, cn;
-	std::vector<float> R;				// d * d
-	std::vector<float> centroids;		// (M * ksub) * dsub
-	std::vector<uint8_t> codes;			// n * M
-	std::vector<float> clscentroids;	// cn * d
-	std::vector<uint16_t> idx;			// n
+	idx_t klq;
+	float * centroids = nullptr;	// klq * d
+	lqc_t * codes = nullptr;		// n * 1
 };
 
-#endif // !PQ_H
+}	// namespace aknn

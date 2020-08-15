@@ -1,6 +1,6 @@
-## Gen_knn
+## Gen_mbase
 
-Generate a k-NN graph (k <= 100).
+The module is used to explore the structure of input data.
 
 ##### Usage
 

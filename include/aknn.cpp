@@ -1,393 +1,147 @@
-#include "aknn.h"
-#include <fstream>
-#include <iostream>
-#include <algorithm>
-#include <iomanip>
+#include "AKNN.h"
 #include <cstring>
-#include <cmath>
+#include <algorithm>
 #include <chrono>
-#include <assert.h>
-#include <omp.h>
-#include <immintrin.h>
-using namespace std;
 
-AKNN::AKNN(const char * basename, const char * queryname, const char * graphname, const char * gtname)
+namespace aknn {
+
+void AKNN::search(Parameter * params, size_t pmsize, const char * outname)
 {
-	ready = false;
-	load(basename, queryname, graphname, gtname);
+	assert_aknn(index, "No index");
+	prepare(index, bname, qname, knngname, gtname);
+
+	fprintf(stderr, "search...\n");
+	for (size_t i = 0; i < pmsize; i++) {
+		fprintf(stderr, "E: %d	L: %d\n", params[i].E, params[i].L);
+		search_o(params[i], outname);
+	}
+	clear();
 }
 
-void AKNN::init_params(Param _params)
+void AKNN::search_o(Parameter params, const char * outname)
 {
-	if (_params.K > groundtruth.dim || _params.E > graph.dim || _params.L < _params.K) {
-		cerr << "params out of range\n";
-		exit(1);
-	}
-	params = _params;
-	ready = true;
-	gtset.resize(groundtruth.num);
-	for (uint i = 0; i < groundtruth.num; i++) {
-		for (uint j = i * groundtruth.dim; j < i * groundtruth.dim + params.K; j++) {
-			gtset[i].insert(groundtruth.data[j]);
-		}
-	}
-}
-
-void AKNN::set_E(uint E)
-{
-	if (E > graph.dim) exit(1);
-	params.E = E;
-}
-
-void AKNN::set_R(uint R)
-{
-	params.R = R;
-}
-
-void AKNN::set_L(uint L)
-{
-	if (L < params.K) exit(1);
-	params.L = L;
-}
-
-void AKNN::display()
-{
-	if (base.data != nullptr) {
-		cout << "base\n";
-		display_data(base.data, base.num, base.dim);
-	}
-	if (query.data != nullptr) {
-		cout << "query\n";
-		display_data(query.data, query.num, query.dim);
-	}
-	if (groundtruth.data != nullptr) {
-		cout << "groundtruth\n";
-		display_data(groundtruth.data, groundtruth.num, groundtruth.dim);
-	}
-	if (graph.data != nullptr) {
-		cout << "graph\n";
-		display_data(graph.data, graph.num, graph.dim);
-	}
-}
-
-void AKNN::display_data(float * data, uint num, uint dim)
-{
-	num = 3;
-	for (uint i = 0; i < num; i++) {
-		for (uint j = i * dim; j < (i + 1) *dim; j++) {
-			if ((j - i * dim) && (j - i * dim) % 17 == 0) cout << endl;
-			cout << setw(7) << data[j];
-		}
-		cout << endl << endl;
-	}
-	cout << "...\n\n";
-}
-
-void AKNN::display_data(int * data, uint num, uint dim)
-{
-	num = 3;
-	for (uint i = 0; i < num; i++) {
-		for (uint j = i * dim; j < (i + 1) *dim; j++) {
-			if ((j - i * dim) && (j - i * dim) % 17 == 0) cout << endl;
-			cout << setw(7) << data[j];
-		}
-		cout << endl << endl;
-	}
-	cout << "...\n\n";
-}
-
-void AKNN::load(const char *basename, const char *queryname, const char *graphname, const char *gtname)
-{
-	clock_t start = clock();
-	if (strlen(basename) > 0) {
-		cerr << "read base " << basename << endl;
-		load_data(basename, base.data, base.num, base.dim);
-		cerr << "dimention: " << base.dim << endl
-			<< "points' num: " << base.num << endl;
-	}
-	if (strlen(queryname) > 0) {
-		cerr << "read query " << queryname << endl;
-		load_data(queryname, query.data, query.num, query.dim);
-		cerr << "dimention: " << query.dim << endl
-			<< "points' num: " << query.num << endl;
-	}
-	if (strlen(gtname) > 0) {
-		cerr << "read groundtruth " << gtname << endl;
-		load_data(gtname, groundtruth.data, groundtruth.num, groundtruth.dim);
-		//delete[]groundtruth.data;
-		cerr << "dimention: " << groundtruth.dim << endl
-			<< "points' num: " << groundtruth.num << endl;
-	}
-	if (strlen(graphname) > 0) {
-		cerr << "read graph " << graphname << endl;
-		load_data(graphname, graph.data, graph.num, graph.dim);
-		cerr << "dimention: " << graph.dim << endl
-			<< "points' num: " << graph.num << endl;
-	}
-	cerr << "cost " << (clock() - start) * 1.0 / CLOCKS_PER_SEC << " s\n";
-}
-
-void AKNN::load_data(const char * filename, float *& data, uint & num, uint & dim)
-{
-	ifstream in(filename, ios::binary);
-	if (!in.is_open()) {
-		cerr << "open file error" << endl;
-		exit(-1);
-	}
-	in.read((char*)&dim, 4);
-	in.seekg(0, ios::end);
-	ios::pos_type ss = in.tellg();
-	size_t fsize = (size_t)ss;
-	num = (unsigned)(fsize / (dim + 1) / 4);
-	data = new float[(size_t)num * (size_t)dim];
-
-	in.seekg(0, ios::beg);
-	for (size_t i = 0; i < num; i++) {
-		in.seekg(4, ios::cur);
-		in.read((char*)(data + i * dim), dim * 4);
-	}
-	in.close();
-}
-
-void AKNN::load_data(const char * filename, int *& data, uint & num, uint & dim)
-{
-	ifstream in(filename, ios::binary);
-	if (!in.is_open()) {
-		cout << "open file error" << endl;
-		exit(-1);
-	}
-	in.read((char*)&dim, 4);
-	in.seekg(0, ios::end);
-	ios::pos_type ss = in.tellg();
-	uint fsize = (uint)ss;
-	num = fsize / (dim + 1) / 4;
-	data = new int[(size_t)num * (size_t)dim];
-
-	in.seekg(0, ios::beg);
-	for (uint i = 0; i < num; i++) {
-		in.seekg(4, ios::cur);
-		in.read((char*)(data + i * dim), dim * 4);
-	}
-	in.close();
-}
-
-void AKNN::insert_pool(vector<Neighbor>& pool, Neighbor p, size_t end)
-{
-	size_t i = end;
-	while (i > 0 && p.distance < pool[i - 1].distance) {
-		pool[i] = pool[i - 1];
-		i--;
-	}
-	pool[i] = p;
-}
-
-float AKNN::distance(float * vec1, float * vec2, uint dim)
-{
-	int nBlockWidth = 8;
-	int cntBlock = dim / nBlockWidth;
-	int cntRem = dim % nBlockWidth;
-
-	__m256 mload1, mload2,
-		mSub = _mm256_setzero_ps(),
-		mSum = _mm256_setzero_ps();
-	float *p1 = vec1, *p2 = vec2;
-	for (int i = 0; i < cntBlock; i++)
+	idx_t * res = new idx_t[index->nq * params.K];
+	ScopeDeleter<idx_t> del(res);
 	{
-		mload1 = _mm256_loadu_ps(p1);
-		mload2 = _mm256_loadu_ps(p2);
-		mSub = _mm256_sub_ps(mload1, mload2);
-		mSum = _mm256_fmadd_ps(mSub, mSub, mSum);
-		p1 += nBlockWidth;
-		p2 += nBlockWidth;
+		auto start = std::chrono::system_clock::now();
+		index->search(params, res);
+		auto end = std::chrono::system_clock::now();
+		float qtime = std::chrono::duration<float>(end - start).count();
+		fprintf(stderr, "\nquery time: %.5f\n"
+			"QPS: %f\n",
+			qtime, index->nq * 1.0 / qtime);
 	}
-	mSum = _mm256_hadd_ps(mSum, mSum);
-	mSum = _mm256_hadd_ps(mSum, mSum);
-
-	float sum = 0;
-#ifdef __linux__
-	sum += mSum[0];
-	sum += mSum[4];
-#else
-	sum += mSum.m256_f32[0];
-	sum += mSum.m256_f32[4];
-#endif
-	for(int i = 0; i < cntRem; i++) sum += (p1[i] - p2[i]) * (p1[i] - p2[i]);
-
-	/*float sum = 0;
-	for (int i = 0; i < dim; i++) {
-		sum += (vec1[i] - vec2[i]) * (vec1[i] - vec2[i]);
-	}*/
-	return sqrt(sum);
+	float recall = index->evaluate(res, index->gt, index->nq, params.K);
+	fprintf(stderr, "average accuracy: %f\n\n", recall);
+	if (strlen(outname) > 0) save_res(outname, res, index->nq, index->d);
 }
 
-float * AKNN::get_ptr(float * begin, const uint index, const uint dim)
+void AKNN::prepare(mIndex * index, const char * base, const char * query, const char * knngraph, const char * groundtruth)
 {
-	return begin + index * dim;
-}
-
-int * AKNN::get_ptr(int * begin, const uint index, const uint dim)
-{
-	return begin + index * dim;
-}
-
-void AKNN::search()
-{
-	if (!ready) exit(1);
-	if (searchRes.data != nullptr) delete[]searchRes.data;
-	searchRes.data = new int[params.K * query.num];
-	searchRes.dim = params.K;
-	searchRes.num = query.num;
-
-	float qtime = 0;
-	srand((uint)time(0));
-	uint acc = 0;
-
-	//clock_t start = clock();
-	auto start = chrono::system_clock::now();
-#pragma omp parallel for reduction(+:acc)
-	for (int q = 0; q < searchRes.num; q++) {
-		vector<uint> neighbors;
-		int maxc = -1;
-		for (uint r = 0; r < params.R; r++) {
-			vector<uint> tempn(params.K);
-			uint initPoint = rand() % base.num;
-			get_neighbors(tempn, q, initPoint, params.K, params.L, params.E);
-			int cnt = 0;
-			for (uint i = 0; i < params.K; i++) {
-				if (gtset[q].count(tempn[i])) cnt++;
-			}
-			if (cnt > maxc) {
-				maxc = cnt;
-				neighbors = tempn;
-			}
-		}
-		acc += maxc;
-		for (uint i = 0; i < params.K; i++) {
-			searchRes.data[q * params.K + i] = neighbors[i];
+	idx_t dq, kgt, ng, ngt;
+	if (strlen(base) > 0) {
+		if (use_mmap) AKNN_IO::fvecs_mmap(base, index->xb, index->nb, index->d);
+		else AKNN_IO::fvecs_read(base, index->xb, index->nb, index->d);
+		fprintf(stderr, "[%dx%d] read base: %s\n", index->nb, index->d, base);
+		if (verbose) {
+			printf("\nbase\n");
+			display(index->xb, index->nb, index->d);
 		}
 	}
-	auto end = chrono::system_clock::now();
-	qtime += chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0;
-
-	cerr << "\nquery time: " << qtime << "\nQPS: " << searchRes.num * 1.0 / qtime
-		<< "\naverage accuracy: " << acc / (1.0 * searchRes.num * searchRes.dim) << endl << endl;
+	if (strlen(query) > 0) {
+		AKNN_IO::fvecs_read(query, index->xq, index->nq, dq);
+		fprintf(stderr, "[%dx%d] read query: %s\n", index->nq, dq, query);
+		if (verbose) {
+			printf("\nquery\n");
+			display(index->xq, index->nq, dq);
+		}
+		assert_aknn(index->d == dq, "weird data size");
+	}
+	if (strlen(knngraph) > 0) {
+		AKNN_IO::ivecs_read(knngraph, index->xg, ng, index->k);
+		fprintf(stderr, "[%dx%d] read graph: %s\n", ng, index->k, knngraph);
+		if (verbose) {
+			printf("\ngraph\n");
+			display(index->xg, ng, index->k);
+		}
+		assert_aknn(index->nb == ng, "weird data size");
+	}
+	if (strlen(groundtruth) > 0) {
+		idx_t * xgt = nullptr;
+		AKNN_IO::ivecs_read(groundtruth, xgt, ngt, kgt);
+		ScopeDeleter<idx_t> del(xgt);
+		fprintf(stderr, "[%dx%d] read groundtruth: %s\n", ngt, kgt, groundtruth);
+		if (verbose) {
+			printf("\ngroundtruth\n");
+			display(xgt, ngt, kgt);
+		}
+		assert_aknn(index->nq == ngt && index->k <= kgt, "weird data size");
+		index->gt = new std::unordered_set<idx_t>[ngt];
+		for (idx_t i = 0; i < ngt; i++) {
+			for (idx_t j = 0; j < index->k; j++) index->gt[i].insert(xgt[i * kgt + j]);
+		}
+	}
 }
 
-void AKNN::get_neighbors(vector<uint> & res, uint q, uint initPoint, uint K, uint L, uint E)
+void AKNN::display(float * x, idx_t n, idx_t d)
 {
-	float * ptr_q = get_ptr(query.data, q, query.dim);
-	float initDis = distance(get_ptr(base.data, initPoint, base.dim), ptr_q, base.dim);
-
-	/*vector<Neighbor> S;
-	S.push_back(Neighbor(initPoint, initDis));*/
-	vector<Neighbor> S(L + 1);
-	S[0] = Neighbor(initPoint, initDis);
-	size_t end = 0;
-
-	vector<bool> vis(base.num, false), in(base.num, false);
-	uint i = 0;
-	while (i < L) {
-		// find the index of the first unchecked node in S
-		uint j;
-		for (j = 0; j < S.size(); j++) {
-			if (!vis[S[j].id]) {
-				i = j;
-				break;
-			}
+	idx_t num = std::min((idx_t)3, n);
+	for (idx_t i = 0; i < num; i++) {
+		for (idx_t j = 0; j < d; j++) {
+			if (j > 0 && j % 17 == 0) printf("\n");
+			printf(" %6.3g", x[i * d + j]);
 		}
-		if (j == S.size()) break;
-
-		uint id = S[i].id;
-		vis[id] = true;
-		
-		// add neighbors to the candidate pool
-		int * neighbors = get_ptr(graph.data, id, graph.dim);
-		for (j = 0; j < E; j++) {
-			if (vis[neighbors[j]] || in[neighbors[j]]) continue;
-			float * pj = get_ptr(base.data, neighbors[j], base.dim);
-			float dis = distance(pj, ptr_q, base.dim);
-			insert_pool(S, Neighbor(neighbors[j], dis), end);
-			end = min(end + 1, (size_t)L);
-			//S.push_back(Neighbor(neighbors[j], dis));
-			in[neighbors[j]] = true;
-		}
-		/*sort(S.begin(), S.end());
-		if (S.size() > L) S.resize(L);*/
+		printf("\n\n");
 	}
-	for (i = 0; i < K && i < S.size(); i++) res[i] = S[i].id;
 }
 
-void AKNN::save(const char *outputname)
+void AKNN::display(idx_t * x, idx_t n, idx_t d)
 {
-	ofstream out(outputname, ios::binary);
-	if (!out.is_open()) {
-		cerr << "open file error" << endl;
-		exit(-1);
-	}
-	cout << "search result:\n";
-	uint num = 3;
-	for (uint i = 0; i < num; i++) {
-		out.write((char*)& searchRes.dim, 4);
-		out.write((char *)(searchRes.data + i * searchRes.dim), searchRes.dim * 4);
-		for (uint j = i * searchRes.dim; j < (i + 1) * searchRes.dim; j++) {
-			if ((j - i * searchRes.dim) && (j - i * searchRes.dim) % 17 == 0) cout << endl;
-			cout << setw(7) << searchRes.data[j];
+	idx_t num = std::min((idx_t)3, n);
+	for (idx_t i = 0; i < num; i++) {
+		for (idx_t j = 0; j < d; j++) {
+			if (j > 0 && j % 17 == 0) printf("\n");
+			printf(" %6d", x[i * d + j]);
 		}
-		cout << "\n\n";
+		printf("\n\n");
 	}
-	cout << "...\n\n";
-	out.close();
-
-	cout << "groundtruth:\n";
-	for (uint i = 0; i < num; i++) {
-		for (uint j = i * groundtruth.dim; j < i * groundtruth.dim + searchRes.dim; j++) {
-			if ((j - i * groundtruth.dim) && (j - i * groundtruth.dim) % 17 == 0) cout << endl;
-			cout << setw(7) << groundtruth.data[j];
-		}
-		cout << "\n\n";
-	}
-	cout << "...\n\n";
 }
 
-void AKNN::gen_lknn(uint K, char * lknnName)
+void AKNN::display(uint8_t * x, idx_t n, idx_t d)
 {
-	assert(K <= graph.dim);
-	ofstream out(lknnName, ios::binary);
-	if (!out.is_open()) {
-		cerr << "open file error" << endl;
-		exit(-1);
-	}
-	for (uint i = 0; i < graph.num; i++) {
-		out.write((char*)& K, 4);
-		out.write((char *)(graph.data + i * graph.dim), K * 4);
-		if (i < 3) {
-			for (uint j = i * graph.dim; j < i * graph.dim + K; j++) {
-				if ((j - i * graph.dim) && (j - i * graph.dim) % 17 == 0) cout << endl;
-				cout << setw(7) << graph.data[j];
-			}
-			cout << endl << endl;
+	idx_t num = std::min((idx_t)3, n);
+	for (idx_t i = 0; i < num; i++) {
+		for (idx_t j = 0; j < d; j++) {
+			if (j > 0 && j % 16 == 0) printf("\n");
+			printf(" %6d", x[i * d + j]);
 		}
+		printf("\n\n");
 	}
-	out.close();
-	cout << "...\n\n";
 }
 
-AKNN::~AKNN()
+void AKNN::display(uint16_t * x, idx_t n, idx_t d)
 {
-	if (base.data != nullptr) {
-		delete []base.data;
-		base.data = nullptr;
-	}
-	if (query.data != nullptr) {
-		delete []query.data;
-		query.data = nullptr;
-	}
-	if (graph.data != nullptr) {
-		delete []graph.data;
-		graph.data = nullptr;
-	}
-	if (groundtruth.data != nullptr) {
-		delete []groundtruth.data;
-		groundtruth.data = nullptr;
+	idx_t num = std::min((idx_t)3, n);
+	for (idx_t i = 0; i < num; i++) {
+		for (idx_t j = 0; j < d; j++) {
+			if (j > 0 && j % 16 == 0) printf("\n");
+			printf(" %6d", x[i * d + j]);
+		}
+		printf("\n");
 	}
 }
+
+void AKNN::save_res(const char * resname,  idx_t * x, idx_t n, idx_t d)
+{
+	AKNN_IO::ivecs_write(resname, x, n, d);
+}
+
+void AKNN::clear()
+{
+	ScopeDeleter<float>(index->xb);
+	ScopeDeleter<float>(index->xq);
+	ScopeDeleter<idx_t>(index->xg);
+	ScopeDeleter<std::unordered_set<idx_t>>(index->gt);
+}
+
+}	// namespace aknn
