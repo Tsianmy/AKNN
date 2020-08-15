@@ -1,10 +1,10 @@
 ## Test_structure
 
-These codes are used to explore the structure of input data.
+The module is used to explore the structure of input data.
 
 ##### Usage
 
-```bash
+```
 mkdir build
 cmake -B build/
 make -C build/
