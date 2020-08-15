@@ -1,0 +1,13 @@
+## Test_structure
+
+The module is used to explore the structure of input data.
+
+##### Usage
+
+```
+mkdir build
+cmake -B build/
+make -C build/
+./AKNN.exe
+```
+
